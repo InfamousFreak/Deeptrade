@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DeepTrade Dashboard</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/apexcharts"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #111827;
+      /* Dark background */
+      color: #d1d5db;
+      /* Default light text */
+    }
+
+    .card {
+      background: #1f2937;
+      /* Darker card background */
+      border: 1px solid #374151;
+      padding: 1.5rem;
+      border-radius: 8px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      transition: all 0.3s ease-in-out;
+    }
+
+    .card.clickable {
+      cursor: pointer;
+    }
+
+    .card.clickable:hover {
+      transform: translateY(-5px);
+      border-color: #4f46e5;
+    }
+
+    .card h2 {
+      margin-top: 0;
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: #f9fafb;
+      /* White headings */
+    }
+
+    .card-content {
+      max-height: 150px;
+      /* Smaller height for side cards */
+      overflow-y: auto;
+    }
+
+    pre {
+      background-color: #111827;
+      /* Even darker pre background */
+      color: #9ca3af;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+    }
+
+    /* Modal styles for dark theme */
+    .modal-overlay {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      transition: opacity 0.3s, visibility 0.3s;
+    }
+
+    .modal-overlay.active {
+      opacity: 1;
+      visibility: visible;
+    }
+
+    .modal-content {
+      background: #1f2937;
+      padding: 2rem;
+      border-radius: 8px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      position: relative;
+      transform: scale(0.9);
+      transition: transform 0.3s;
+      border: 1px solid #374151;
+    }
+
+    .modal-overlay.active .modal-content {
+      transform: scale(1);
+    }
+
+    .modal-close {
+      position: absolute;
+      top: 1rem;
+      right: 1rem;
+      background: #374151;
+      color: #f9fafb;
+      border-radius: 9999px;
+      width: 2rem;
+      height: 2rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+  <nav class="bg-gray-900 shadow-lg">
+    <div class="container mx-auto px-6 py-4 flex justify-between items-center">
+      <h1 class="text-2xl font-bold text-white">DeepTrade Dashboard</h1>
+      <div class="flex items-center">
+        <input type="text" id="symbolInput"
+          class="bg-gray-700 text-white rounded-md py-2 px-4 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+          placeholder="Enter stock symbol..." onkeypress="handleKey(event)" />
+        <button id="logoutButton"
+          class="ml-4 bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md text-sm font-medium transition duration-300">Logout</button>
+      </div>
+    </div>
+  </nav>
+
+  <div class="container mx-auto p-6 grid grid-cols-1 lg:grid-cols-3 gap-6">
+    <!-- Main Chart Column -->
+    <div id="chart-container" class="lg:col-span-2">
+      <!-- Chart card will be inserted here -->
+    </div>
+    <!-- Side Info Column -->
+    <div id="info-container" class="space-y-6">
+      <!-- Other cards will be inserted here -->
+    </div>
+  </div>
+
+  <!-- Modal Structure -->
+  <div id="modal" class="modal-overlay">
+    <div id="modal-content" class="modal-content">
+      <div id="modal-body"></div>
+      <div id="modal-close" class="modal-close">X</div>
+    </div>
+  </div>
+
+  <script>
+    const chartContainer = document.getElementById('chart-container');
+    const infoContainer = document.getElementById('info-container');
+    const modal = document.getElementById('modal');
+    const modalBody = document.getElementById('modal-body');
+    const modalClose = document.getElementById('modal-close');
+    let activeChart = null;
+
+    const endpoints = [
+      { key: 'predict', title: '🔮 Prediction' },
+      { key: 'analytics', title: '📊 Analytics' },
+      { key: 'sentiment', title: '💬 Sentiment' },
+      { key: 'backtest', title: '🧪 Backtest' },
+      { key: 'news', title: '📰 News' },
+    ];
+
+    function createInitialLayout() {
+      chartContainer.innerHTML = `
+            <div class="card" id="chartCard">
+                <h2>📈 Price Chart</h2>
+                <div id="chart" class="card-content min-h-[400px]">
+                    <p class="text-gray-400">Enter a stock symbol to load chart.</p>
+                </div>
+            </div>`;
+
+      infoContainer.innerHTML = '';
+      endpoints.forEach(endpoint => {
+        const card = document.createElement('div');
+        card.className = 'card clickable';
+        card.id = `${endpoint.key}Card`;
+        card.innerHTML = `<h2>${endpoint.title}</h2><div id="${endpoint.key}" class="card-content"><p class="text-gray-400">Enter a stock symbol...</p></div>`;
+        card.addEventListener('click', () => openModal(endpoint.key, endpoint.title));
+        infoContainer.appendChild(card);
+      });
+    }
+
+    async function fetchData(symbol) {
+      const token = localStorage.getItem('authToken');
+      if (!token) { window.location.href = 'login.html'; return; }
+
+      // Fetch chart data first
+      fetchEndpointData('chart', symbol, token);
+
+      // Fetch other endpoint data
+      for (const endpoint of endpoints) {
+        fetchEndpointData(endpoint.key, symbol, token);
+      }
+    }
+
+    async function fetchEndpointData(key, symbol, token) {
+      const contentDiv = document.getElementById(key);
+      if (!contentDiv) return;
+      contentDiv.innerHTML = `<p class="text-gray-400">Loading...</p>`;
+      try {
+        const res = await fetch(`http://localhost:3000/${key}/${symbol}`, {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        if (!res.ok) {
+          const errorData = await res.json();
+          throw new Error(errorData.error || `HTTP error! status: ${res.status}`);
+        }
+        const data = await res.json();
+
+        if (key === 'chart') {
+          renderChart(data);
+        } else {
+          contentDiv.innerHTML = `<pre>${JSON.stringify(data, null, 2)}</pre>`;
+        }
+      } catch (error) {
+        contentDiv.innerHTML = `<pre style="color:#ef4444;">Error: ${error.message}</pre>`;
+      }
+    }
+
+    function renderChart(data) {
+      const chartDiv = document.getElementById('chart');
+      chartDiv.innerHTML = '';
+      const options = {
+        series: data.series,
+        chart: { type: 'candlestick', height: 450, background: 'transparent' },
+        theme: { mode: 'dark' }, // DARK THEME FOR CHART
+        title: { text: 'Candlestick Chart', align: 'left' },
+        xaxis: { type: 'datetime' },
+        yaxis: { tooltip: { enabled: true } }
+      };
+      if (activeChart) { activeChart.destroy(); }
+      activeChart = new ApexCharts(chartDiv, options);
+      activeChart.render();
+    }
+
+    function openModal(key, title) {
+      const contentDiv = document.getElementById(key);
+      if (!contentDiv || contentDiv.querySelector('p')) return;
+
+      modalBody.innerHTML = `<h2>${title}</h2><div class="mt-4">${contentDiv.innerHTML}</div>`;
+      modal.classList.add('active');
+    }
+
+    function closeModal() {
+      modal.classList.remove('active');
+      modalBody.innerHTML = '';
+    }
+
+    function handleKey(e) {
+      if (e.key === 'Enter') {
+        const symbol = document.getElementById('symbolInput').value.trim().toUpperCase();
+        if (symbol) { fetchData(symbol); }
+        else { createInitialLayout(); }
+      }
+    }
+
+    function logout() {
+      localStorage.removeItem('authToken');
+      window.location.href = 'landing.html';
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      const token = localStorage.getItem('authToken');
+      if (!token) { window.location.href = 'login.html'; }
+      else {
+        createInitialLayout();
+        document.getElementById('logoutButton').addEventListener('click', logout);
+        modalClose.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+          if (e.target === modal) { closeModal(); }
+        });
+      }
+    });
+  </script>
+</body>
+
+</html>

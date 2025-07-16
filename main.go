@@ -8,6 +8,8 @@ import (
     "github.com/InfamousFreak/Deeptrade/backend/config"
     "github.com/InfamousFreak/Deeptrade/backend/handlers"
     "github.com/InfamousFreak/Deeptrade/backend/routes"
+
+    "github.com/gofiber/fiber/v2/middleware/cors"
     
 )
 
@@ -16,6 +18,12 @@ func main() {
     app := fiber.New()
 
     jwt := middlewares.NewAuthMiddleware(config.Secret)
+
+    app.Use(cors.New(cors.Config{
+		AllowOrigins: "*", // Allows all origins
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
+
 
 	if err := database.InitDB(); 
     

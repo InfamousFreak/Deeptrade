@@ -15,8 +15,9 @@ func SetupRouter(app *fiber.App) {
 	app.Get("/news/:symbol", controllers.GetStockNews)
 
 	app.Get("/sentiment/:symbol", controllers.GetSentimentFromNews)
-	app.Get("analytics/:symbol", controllers.GetAnalytics)
-	app.Get("backtest/:symbol", controllers.RunBacktest)
-	app.Get("predict/:symbol", controllers.Prediction)
+	app.Get("/analytics/:symbol", controllers.GetAnalytics)
+	app.Get("/backtest/:symbol", controllers.RunBacktest)
+	app.Get("/predict/:symbol", controllers.Prediction)
+	app.Get("/chart/:symbol", controllers.ChartHandler)
 
 }
