@@ -4,10 +4,10 @@ import (
 	"time"
 	"github.com/gofiber/fiber/v2"
  jtoken "github.com/golang-jwt/jwt/v4"
-	"github.com/InfamousFreak/Deeptrade/config"
-	"github.com/InfamousFreak/Deeptrade/models"
-	"github.com/InfamousFreak/Deeptrade/repository"
-	"github.com/InfamousFreak/Deeptrade/database"
+	"github.com/InfamousFreak/Deeptrade/backend/config"
+	"github.com/InfamousFreak/Deeptrade/backend/models"
+	"github.com/InfamousFreak/Deeptrade/backend/repository"
+	"github.com/InfamousFreak/Deeptrade/backend/database"
 	
 )
 

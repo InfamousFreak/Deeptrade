@@ -1,11 +1,15 @@
 package main
 
 import (
+    "log"
     "github.com/gofiber/fiber/v2"
-	"github.com/InfamousFreak/Deeptrade/database"
-    "github.com/InfamousFreak/Deeptrade/middlewares"
-    "github.com/InfamousFreak/Deeptrade/config"
-    "github.com/InfamousFreak/Deeptrade/handlers"
+	"github.com/InfamousFreak/Deeptrade/backend/database"
+    "github.com/InfamousFreak/Deeptrade/backend/middlewares"
+    "github.com/InfamousFreak/Deeptrade/backend/config"
+    "github.com/InfamousFreak/Deeptrade/backend/handlers"
+    "github.com/InfamousFreak/Deeptrade/backend/routes"
+
+    "github.com/gofiber/fiber/v2/middleware/cors"
     
 )
 
@@ -15,7 +19,17 @@ func main() {
 
     jwt := middlewares.NewAuthMiddleware(config.Secret)
 
-	database.ConnectDB()
+    app.Use(cors.New(cors.Config{
+		AllowOrigins: "*", // Allows all origins
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+	}))
+
+
+	if err := database.InitDB(); 
+    
+    err != nil {
+		log.Fatalf("Failed to initialize database: %v", err)
+	}
 
 	app.Get("/", func(c *fiber.Ctx) error {
         err := c.SendString("And the API is UP!")
@@ -23,8 +37,9 @@ func main() {
     })
 
     app.Post("/login", handlers.Login)
-
     app.Get("/protected", jwt, handlers.Protected)
+    
+    routes.SetupRouter(app)
     // listen on PORT 300
     app.Listen(":3000")
 }

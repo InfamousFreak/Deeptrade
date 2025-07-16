@@ -5,33 +5,58 @@ import (
     "log"
     "strconv"
 
-    "github.com/InfamousFreak/Deeptrade/config"
+    "github.com/InfamousFreak/Deeptrade/backend/config"
     "gorm.io/driver/postgres"
     "gorm.io/gorm"
+    "github.com/InfamousFreak/Deeptrade/backend/models"
 )
+
+
+func Convert(port string) uint {
+	u64, err := strconv.ParseUint(port, 10, 64)
+	if err != nil {
+		log.Fatal("Error converting port:", err)
+	}
+	return uint(u64)
+}
 
 
 var Db *gorm.DB
 
 
-func ConnectDB() {
-    var err error
-    p := config.Config("DB_PORT")
-    port, err := strconv.ParseUint(p, 10, 32)
+func InitDB() error {
+	// Extracting the configuration
+	host := config.Load("DB_HOST")
+	port := config.Load("DB_PORT")
+	user := config.Load("DB_USER")
+	password := config.Load("DB_PASSWORD")
+	dbname := config.Load("DB_NAME")
+	
+	// Print the config to ensure they're correctly set
+	fmt.Printf("Connecting to DB with host=%s port=%s user=%s password=%s dbname=%s\n", host, port, user, password, dbname)
 
-    if err != nil {
-        log.Println("Idiot")
-    }
+	// Convert port
+	portUint := Convert(port)
 
-    
-    dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", config.Config("DB_HOST"), port, config.Config("DB_USER"), config.Config("DB_PASSWORD"), config.Config("DB_NAME"))
-    
-    Db, err = gorm.Open(postgres.Open(dsn))
+	// Create DSN string
+	dsn := fmt.Sprintf("host=%s port=%d user=%s password=%s dbname=%s sslmode=disable", host, portUint, user, password, dbname)
+	fmt.Println("DSN:", dsn)
 
-    if err != nil {
-        panic("failed to connect database")
-    }
+	// Attempt to open connection
+	var err error
+	Db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	if err != nil {
+		return fmt.Errorf("failed to connect to database: %w", err)
+	}
 
-    fmt.Println("Connection Opened to Database")
+	fmt.Println("Successfully connected to the database")
+
+	// AutoMigrate tables
+	err = Db.AutoMigrate(&models.UserProfile{})
+	if err != nil {
+		return fmt.Errorf("failed to auto-migrate: %w", err)
+	}
+
+	return nil
 }
 

@@ -7,7 +7,7 @@ import (
 type UserProfile struct {
     gorm.Model
     Name           string `json:"name"`
-    Email          string `gorm:"unique;not null" json:"email"` // Ensure email is unique and not null
+    Email          string  `json:"email"` // Ensure email is unique and not null
     Password       string `json:"password"`
     Country           string `json:"country"`
 }

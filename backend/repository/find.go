@@ -2,7 +2,7 @@ package repository
 
 import (
 	"errors"
-	"github.com/InfamousFreak/Deeptrade/models"
+	"github.com/InfamousFreak/Deeptrade/backend/models"
 	"gorm.io/gorm"
     "golang.org/x/crypto/bcrypt"
 )
