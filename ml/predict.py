@@ -3,15 +3,23 @@ import pandas as pd
 import numpy as np
 import json
 import sys
+import warnings
+import os
 from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score, f1_score
+
+# Suppress all warnings
+warnings.filterwarnings('ignore')
+# Suppress yfinance progress bar
+os.environ['YF_DISABLE_PROGRESS'] = '1'
 
 def get_dummy_sentiment(date):
     return np.random.uniform(-1, 1) 
 
 def prepare_data(symbol):
-    df = yf.download(symbol, period="6mo", interval="1d")
+    # Download data with progress suppressed
+    df = yf.download(symbol, period="6mo", interval="1d", progress=False)
     df.reset_index(inplace=True)
     df = df.dropna()
     
@@ -50,7 +58,7 @@ def prepare_data(symbol):
     # Now convert to string based on type
     if pd.api.types.is_datetime64_any_dtype(date_value):
         # Ensure only the date part is displayed (no time component)
-        latest_date = pd.Timestamp(date_value).date().strftime('%Y-%m-%d')
+        latest_date = pd.Timestamp(date_value).strftime('%Y-%m-%d')
     else:
         latest_date = str(date_value)
         
@@ -59,7 +67,7 @@ def prepare_data(symbol):
 
 def train_model(X, y):
     X_train, X_test, y_train, y_test = train_test_split(X, y , test_size=0.2, shuffle=False)
-    model = XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+    model = XGBClassifier(use_label_encoder=False, eval_metric='logloss', verbosity=0)
     model.fit(X_train, y_train)
     
     preds = model.predict(X_test)
@@ -74,20 +82,26 @@ def predict_today(model, latest_data):
     return "UP" if pred == 1 else "DOWN", round(conf, 2)
 
 if __name__ == "__main__":
-    symbol = sys.argv[1]
-    
-    X, y, latest_data, latest_date = prepare_data(symbol)
-    model, acc, f1 = train_model(X, y)
-    direction, confidence = predict_today(model, latest_data)
-    
-    result = {
-        "symbol": symbol.upper(),
-        "date": latest_date,
-        "prediction": direction,
-        "confidence": float(confidence),
-        "accuracy": float(round(float(acc) * 100, 2)),
-        "f1_score": float(round(float(f1), 2)),
-        "features_used": ["RSI", "SMA_7", "SMA_14", "Momentum", "Sentiment"]
-    }
-    
-    print(json.dumps(result))
+    try:
+        symbol = sys.argv[1]
+        
+        X, y, latest_data, latest_date = prepare_data(symbol)
+        model, acc, f1 = train_model(X, y)
+        direction, confidence = predict_today(model, latest_data)
+        
+        result = {
+            "symbol": symbol.upper(),
+            "date": latest_date,
+            "prediction": direction,
+            "confidence": float(confidence),
+            "accuracy": float(round(float(acc) * 100, 2)),
+            "score": float(round(float(f1), 2)),
+            "features": ["RSI", "SMA_7", "SMA_14", "Momentum", "Sentiment"]
+        }
+        
+        print(json.dumps(result))
+    except Exception as e:
+        error_result = {
+            "error": str(e)
+        }
+        print(json.dumps(error_result))
